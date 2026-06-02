@@ -13,4 +13,14 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.18.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="AgentDataApi.Tests/**/*.cs" />
+    <Content Remove="AgentDataApi.Tests/**" />
+    <None Remove="AgentDataApi.Tests/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="appsettings.Development.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
 </Project>
