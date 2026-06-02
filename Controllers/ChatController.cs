@@ -1,4 +1,4 @@
-﻿using AgentDataApi.DTOs;
+using AgentDataApi.DTOs;
 using AgentDataApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

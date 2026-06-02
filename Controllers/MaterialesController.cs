@@ -1,4 +1,4 @@
-﻿using AgentDataApi.DTOs;
+using AgentDataApi.DTOs;
 using AgentDataApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,9 +17,9 @@ namespace AgentDataApi.Controllers
             _snowflake = snowflake;
         }
 
-        // ── POST /api/materials/guardar ───────────────────
-        [HttpPost("guardar")]
-        public async Task<IActionResult> Guardar([FromBody] MaterialDto dto)
+        // ── POST /api/materials ───────────────────────────
+        [HttpPost]
+        public async Task<IActionResult> Crear([FromBody] MaterialDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.TextoDescriptivo))
                 return BadRequest(new { ok = false, mensaje = "El Texto Descriptivo es requerido." });
@@ -41,14 +41,14 @@ namespace AgentDataApi.Controllers
             }
         }
 
-        // ── GET /api/materials/listar ─────────────────────
-        [HttpGet("listar")]
-        public async Task<IActionResult> Listar()
+        // ── GET /api/materials ────────────────────────────
+        [HttpGet]
+        public async Task<IActionResult> Listar([FromQuery] MaterialesQueryDto query)
         {
             try
             {
-                var solicitudes = await _snowflake.ObtenerSolicitudesAsync();
-                return Ok(new { ok = true, data = solicitudes });
+                var solicitudes = await _snowflake.ObtenerSolicitudesAsync(query);
+                return Ok(solicitudes);
             }
             catch (Exception ex)
             {
@@ -56,8 +56,23 @@ namespace AgentDataApi.Controllers
             }
         }
 
-        // ── PUT /api/materials/actualizar/:id ─────────────
-        [HttpPut("actualizar/{id}")]
+        // ── GET /api/materials/solicitantes ───────────────
+        [HttpGet("solicitantes")]
+        public async Task<IActionResult> Solicitantes()
+        {
+            try
+            {
+                var solicitantes = await _snowflake.ObtenerSolicitantesAsync();
+                return Ok(new { ok = true, data = solicitantes });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { ok = false, mensaje = ex.Message });
+            }
+        }
+
+        // ── PUT /api/materials/:id ────────────────────────
+        [HttpPut("{id}")]
         public async Task<IActionResult> Actualizar(string id, [FromBody] ActualizarMaterialDto dto)
         {
             if (string.IsNullOrWhiteSpace(id))

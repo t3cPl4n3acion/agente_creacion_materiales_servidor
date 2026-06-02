@@ -48,7 +48,7 @@ public class ControllerSuccessTests
         var snowflake = new FakeSnowflakeService { SavedId = "SOL-123" };
         var controller = new MaterialesController(snowflake);
 
-        var result = await controller.Guardar(new MaterialDto { TextoDescriptivo = "Bomba centrifuga" });
+        var result = await controller.Crear(new MaterialDto { TextoDescriptivo = "Bomba centrifuga" });
 
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.True(GetProperty<bool>(ok.Value!, "ok"));
@@ -64,13 +64,30 @@ public class ControllerSuccessTests
         {
             new() { ["ID_SOLICITUD"] = "SOL-1", ["ESTADO_IA"] = "APROBADO" }
         };
-        var controller = new MaterialesController(new FakeSnowflakeService { Solicitudes = solicitudes });
+        var snowflake = new FakeSnowflakeService { Solicitudes = solicitudes };
+        var controller = new MaterialesController(snowflake);
 
-        var result = await controller.Listar();
+        var result = await controller.Listar(new MaterialesQueryDto { Search = "motor", Page = 2, PageSize = 5 });
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<MaterialesPageDto>(ok.Value);
+        Assert.True(response.Ok);
+        Assert.Same(solicitudes, response.Data);
+        Assert.Equal("motor", snowflake.LastQuery?.Search);
+        Assert.Equal(2, snowflake.LastQuery?.Page);
+        Assert.Equal(5, snowflake.LastQuery?.PageSize);
+    }
+
+    [Fact]
+    public async Task Solicitantes_ReturnsOk_WithRequesterOptions()
+    {
+        var controller = new MaterialesController(new FakeSnowflakeService());
+
+        var result = await controller.Solicitantes();
 
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.True(GetProperty<bool>(ok.Value!, "ok"));
-        Assert.Same(solicitudes, GetProperty<List<Dictionary<string, object>>>(ok.Value!, "data"));
+        Assert.Equal(new List<string> { "JUAN" }, GetProperty<List<string>>(ok.Value!, "data"));
     }
 
     [Fact]
@@ -152,6 +169,7 @@ public class ControllerSuccessTests
         public MaterialDto? SavedMaterial { get; private set; }
         public string? UpdatedId { get; private set; }
         public ActualizarMaterialDto? UpdatedMaterial { get; private set; }
+        public MaterialesQueryDto? LastQuery { get; private set; }
         public List<Dictionary<string, object>> Duplicados { get; set; } = new();
         public List<Dictionary<string, object>> Solicitudes { get; set; } = new();
 
@@ -165,7 +183,21 @@ public class ControllerSuccessTests
             return Task.FromResult(SavedId);
         }
 
-        public Task<List<Dictionary<string, object>>> ObtenerSolicitudesAsync() => Task.FromResult(Solicitudes);
+        public Task<MaterialesPageDto> ObtenerSolicitudesAsync(MaterialesQueryDto query)
+        {
+            LastQuery = query;
+            return Task.FromResult(new MaterialesPageDto
+            {
+                Data = Solicitudes,
+                Total = Solicitudes.Count,
+                Page = query.Page,
+                PageSize = query.PageSize,
+                TotalPages = 1,
+                Stats = new MaterialesStatsDto { Aprobados = Solicitudes.Count }
+            });
+        }
+
+        public Task<List<string>> ObtenerSolicitantesAsync() => Task.FromResult(new List<string> { "JUAN" });
 
         public Task ActualizarSolicitudAsync(string id, ActualizarMaterialDto datos)
         {

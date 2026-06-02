@@ -31,4 +31,32 @@ namespace AgentDataApi.DTOs
         public string RecomendacionIA { get; set; } = string.Empty;
         public string Solicitante { get; set; } = string.Empty;
     }
+
+    public class MaterialesQueryDto
+    {
+        public string? Search { get; set; }
+        public string? Estado { get; set; }
+        public string? EstadoSAP { get; set; }
+        public string? Solicitante { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 8;
+    }
+
+    public class MaterialesPageDto
+    {
+        public bool Ok { get; set; } = true;
+        public List<Dictionary<string, object>> Data { get; set; } = new();
+        public int Total { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 8;
+        public int TotalPages { get; set; } = 1;
+        public MaterialesStatsDto Stats { get; set; } = new();
+    }
+
+    public class MaterialesStatsDto
+    {
+        public int Pendientes { get; set; }
+        public int Aprobados { get; set; }
+        public int Rechazados { get; set; }
+    }
 }

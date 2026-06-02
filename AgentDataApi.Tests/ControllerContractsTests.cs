@@ -90,7 +90,7 @@ public class ControllerContractsTests
     {
         var controller = new MaterialesController(CreateSnowflakeService());
 
-        var result = await controller.Guardar(new MaterialDto { TextoDescriptivo = "" });
+        var result = await controller.Crear(new MaterialDto { TextoDescriptivo = "" });
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.False(GetProperty<bool>(badRequest.Value!, "ok"));
