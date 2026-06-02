@@ -1,6 +1,7 @@
 using AgentDataApi.Controllers;
 using AgentDataApi.DTOs;
-using AgentDataApi.Services;
+using AgentDataApi.Services.Implementation;
+using AgentDataApi.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 
@@ -132,11 +133,11 @@ public class ControllerContractsTests
         Assert.Equal("La pregunta es requerida.", GetProperty<string>(badRequest.Value!, "mensaje"));
     }
 
-    private static AuthService CreateAuthService() => new(CreateConfiguration());
+    private static IAuthService CreateAuthService() => new AuthService(CreateConfiguration());
 
-    private static SnowflakeService CreateSnowflakeService() => new(CreateConfiguration());
+    private static ISnowflakeService CreateSnowflakeService() => new SnowflakeService(CreateConfiguration());
 
-    private static GroqService CreateGroqService() => new(CreateConfiguration(), new TestHttpClientFactory());
+    private static IGroqService CreateGroqService() => new GroqService(CreateConfiguration(), new TestHttpClientFactory());
 
     private static IConfiguration CreateConfiguration()
     {

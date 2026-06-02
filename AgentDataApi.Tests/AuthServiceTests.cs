@@ -1,4 +1,4 @@
-using AgentDataApi.Services;
+using AgentDataApi.Services.Implementation;
 using Microsoft.Extensions.Configuration;
 
 namespace AgentDataApi.Tests;

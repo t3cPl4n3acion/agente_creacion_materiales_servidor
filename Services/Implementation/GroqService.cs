@@ -1,17 +1,18 @@
 ﻿using System.Text;
 using System.Text.Json;
 using AgentDataApi.DTOs;
+using AgentDataApi.Services.Interfaces;
 
-namespace AgentDataApi.Services
+namespace AgentDataApi.Services.Implementation
 {
-	public class GroqService
-	{
-		private readonly IConfiguration _config;
-		private readonly HttpClient _http;
+    public class GroqService : IGroqService
+    {
+        private readonly IConfiguration _config;
+        private readonly HttpClient _http;
 
-		private const string GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+        private const string GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-		private const string POLITICA = @"
+        private const string POLITICA = @"
 Eres el Asistente Virtual de Data Maestra de Repuestos y Suministros de SUPER DE ALIMENTOS S.A.
 Tu función es analizar solicitudes de creación de materiales en SAP verificando la política oficial de nomenclatura taxonómica.
 
@@ -177,23 +178,23 @@ FORMATO DE RESPUESTA — SOLO JSON PURO SIN MARKDOWN
     ""coherenciaAdjunto"": null
 }";
 
-		public GroqService(IConfiguration config, IHttpClientFactory httpClientFactory)
-		{
-			_config = config;
-			_http = httpClientFactory.CreateClient();
-		}
+        public GroqService(IConfiguration config, IHttpClientFactory httpClientFactory)
+        {
+            _config = config;
+            _http = httpClientFactory.CreateClient();
+        }
 
-		// ── 1. VERIFICAR MATERIAL ─────────────────────────
-		public async Task<VerificarResultadoDto> VerificarMaterialAsync(
-			VerificarDto datos,
-			List<Dictionary<string, object>> duplicadosSnowflake)
-		{
-			var duplicadosTexto = duplicadosSnowflake.Count > 0
-				? string.Join("\n", duplicadosSnowflake.Select(d =>
-					$"  • ID SAP: {d["MAM_IdMaterial"]} | Descripción: {d["MAM_Material"]} | Unidad: {d["MAM_UMB"]} | Grupo: {d["MAM_IdGrupoMaterial"]}"))
-				: "  • Ninguno encontrado";
+        // ── 1. VERIFICAR MATERIAL ─────────────────────────
+        public async Task<VerificarResultadoDto> VerificarMaterialAsync(
+            VerificarDto datos,
+            List<Dictionary<string, object>> duplicadosSnowflake)
+        {
+            var duplicadosTexto = duplicadosSnowflake.Count > 0
+                ? string.Join("\n", duplicadosSnowflake.Select(d =>
+                    $"  • ID SAP: {d["MAM_IdMaterial"]} | Descripción: {d["MAM_Material"]} | Unidad: {d["MAM_UMB"]} | Grupo: {d["MAM_IdGrupoMaterial"]}"))
+                : "  • Ninguno encontrado";
 
-			var mensajeUsuario = $@"
+            var mensajeUsuario = $@"
 			Analiza esta solicitud de creación de material en SAP para SUPER DE ALIMENTOS:
 
 			- Texto Descriptivo: ""{datos.TextoDescriptivo}"" (longitud exacta: {datos.TextoDescriptivo.Length} caracteres de máximo 40 permitidos)
@@ -217,105 +218,105 @@ FORMATO DE RESPUESTA — SOLO JSON PURO SIN MARKDOWN
 
 			Responde SOLO en formato JSON puro sin markdown.";
 
-			var payload = new
-			{
-				model = _config["Groq:Model"] ?? "llama-3.3-70b-versatile",
-				messages = new[]
-				{
-					new { role = "system",  content = POLITICA },
-					new { role = "user",    content = mensajeUsuario }
-				},
-				temperature = 0.1,
-				max_tokens = 1000
-			};
+            var payload = new
+            {
+                model = _config["Groq:Model"] ?? "llama-3.3-70b-versatile",
+                messages = new[]
+                {
+                    new { role = "system",  content = POLITICA },
+                    new { role = "user",    content = mensajeUsuario }
+                },
+                temperature = 0.1,
+                max_tokens = 1000
+            };
 
-			var json = JsonSerializer.Serialize(payload);
-			var request = new HttpRequestMessage(HttpMethod.Post, GROQ_URL);
-			request.Headers.Add("Authorization", $"Bearer {_config["Groq:ApiKey"]}");
-			request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+            var json = JsonSerializer.Serialize(payload);
+            var request = new HttpRequestMessage(HttpMethod.Post, GROQ_URL);
+            request.Headers.Add("Authorization", $"Bearer {_config["Groq:ApiKey"]}");
+            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-			var response = await _http.SendAsync(request);
-			var body = await response.Content.ReadAsStringAsync();
+            var response = await _http.SendAsync(request);
+            var body = await response.Content.ReadAsStringAsync();
 
-			try
-			{
-				var groqRes = JsonSerializer.Deserialize<JsonElement>(body);
-				var content = groqRes
-					.GetProperty("choices")[0]
-					.GetProperty("message")
-					.GetProperty("content")
-					.GetString() ?? "";
+            try
+            {
+                var groqRes = JsonSerializer.Deserialize<JsonElement>(body);
+                var content = groqRes
+                    .GetProperty("choices")[0]
+                    .GetProperty("message")
+                    .GetProperty("content")
+                    .GetString() ?? "";
 
-				var clean = content.Replace("```json", "").Replace("```", "").Trim();
-				var resultado = JsonSerializer.Deserialize<VerificarResultadoDto>(clean,
-					new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var clean = content.Replace("```json", "").Replace("```", "").Trim();
+                var resultado = JsonSerializer.Deserialize<VerificarResultadoDto>(clean,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-				return resultado ?? FallbackError();
-			}
-			catch
-			{
-				return FallbackError();
-			}
-		}
+                return resultado ?? FallbackError();
+            }
+            catch
+            {
+                return FallbackError();
+            }
+        }
 
-		// ── 2. CHAT LIBRE ─────────────────────────────────
-		public async Task<string> ChatLibreAsync(string pregunta, List<HistorialDto> historial)
-		{
-			var system = @"
+        // ── 2. CHAT LIBRE ─────────────────────────────────
+        public async Task<string> ChatLibreAsync(string pregunta, List<HistorialDto> historial)
+        {
+            var system = @"
 Eres el Asistente Virtual de Data Maestra de Super de Alimentos.
 Ayudas a los usuarios a registrar correctamente repuestos en SAP.
 Respondes de forma clara, concisa y en español.
 Solo respondes preguntas relacionadas con data maestra, repuestos, SAP y el formulario de registro.
 Si te preguntan algo fuera de ese contexto, indica amablemente que solo puedes ayudar con data maestra.";
 
-			var messages = new List<object>
-			{
-				new { role = "system", content = system }
-			};
+            var messages = new List<object>
+            {
+                new { role = "system", content = system }
+            };
 
-			foreach (var h in historial)
-				messages.Add(new { role = h.Role, content = h.Content });
+            foreach (var h in historial)
+                messages.Add(new { role = h.Role, content = h.Content });
 
-			messages.Add(new { role = "user", content = pregunta });
+            messages.Add(new { role = "user", content = pregunta });
 
-			var payload = new
-			{
-				model = _config["Groq:Model"] ?? "llama-3.3-70b-versatile",
-				messages = messages,
-				temperature = 0.7,
-				max_tokens = 500
-			};
+            var payload = new
+            {
+                model = _config["Groq:Model"] ?? "llama-3.3-70b-versatile",
+                messages = messages,
+                temperature = 0.7,
+                max_tokens = 500
+            };
 
-			var json = JsonSerializer.Serialize(payload);
-			var request = new HttpRequestMessage(HttpMethod.Post, GROQ_URL);
-			request.Headers.Add("Authorization", $"Bearer {_config["Groq:ApiKey"]}");
-			request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+            var json = JsonSerializer.Serialize(payload);
+            var request = new HttpRequestMessage(HttpMethod.Post, GROQ_URL);
+            request.Headers.Add("Authorization", $"Bearer {_config["Groq:ApiKey"]}");
+            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-			var response = await _http.SendAsync(request);
-			var body = await response.Content.ReadAsStringAsync();
+            var response = await _http.SendAsync(request);
+            var body = await response.Content.ReadAsStringAsync();
 
-			try
-			{
-				var groqRes = JsonSerializer.Deserialize<JsonElement>(body);
-				return groqRes
-					.GetProperty("choices")[0]
-					.GetProperty("message")
-					.GetProperty("content")
-					.GetString() ?? "Sin respuesta del agente.";
-			}
-			catch
-			{
-				return "Error al conectar con el agente IA.";
-			}
-		}
+            try
+            {
+                var groqRes = JsonSerializer.Deserialize<JsonElement>(body);
+                return groqRes
+                    .GetProperty("choices")[0]
+                    .GetProperty("message")
+                    .GetProperty("content")
+                    .GetString() ?? "Sin respuesta del agente.";
+            }
+            catch
+            {
+                return "Error al conectar con el agente IA.";
+            }
+        }
 
-		private static VerificarResultadoDto FallbackError() => new()
-		{
-			Aprobado = false,
-			Estado = "BLOQUEADO",
-			Motivo = "Error al procesar la respuesta de la IA. Intente nuevamente.",
-			Sugerencia = null,
-			Duplicados = new()
-		};
-	}
+        private static VerificarResultadoDto FallbackError() => new()
+        {
+            Aprobado = false,
+            Estado = "BLOQUEADO",
+            Motivo = "Error al procesar la respuesta de la IA. Intente nuevamente.",
+            Sugerencia = null,
+            Duplicados = new()
+        };
+    }
 }
