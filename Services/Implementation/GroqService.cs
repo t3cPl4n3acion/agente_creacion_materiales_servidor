@@ -334,7 +334,7 @@ CUCHILLA ABRE FACIL 35.9X16.6MM
 CILINDRO ADN-S-32-15-A-P FESTO
 
 Reglas:
-- Usa el Grupo Art. Externo como señal principal de taxonomía.
+- Usa el Grupo Art. y el Grupo Art Externo como señal principal de taxonomía.
 - Si hay referencia y fabricante, usa estructura TIPO + REFERENCIA + MARCA.
 - Si es genérico, usa TIPO + MATERIAL/CARACTERÍSTICA + MEDIDA.
 - Abrevia sin perder claridad: POLIURETANO puede ser POLIU si ayuda al límite.
