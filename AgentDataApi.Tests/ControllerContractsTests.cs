@@ -133,6 +133,30 @@ public class ControllerContractsTests
         Assert.Equal("La pregunta es requerida.", GetProperty<string>(badRequest.Value!, "mensaje"));
     }
 
+    [Fact]
+    public async Task SugerirTexto_ReturnsBadRequest_WhenGrupoExternoIsMissing()
+    {
+        var controller = new ChatController(CreateGroqService(), CreateSnowflakeService());
+
+        var result = await controller.SugerirTexto(new SugerirTextoDto { TextoCompra = "Banda modular" });
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.False(GetProperty<bool>(badRequest.Value!, "ok"));
+        Assert.Equal("El Grupo Art. Ext. es requerido.", GetProperty<string>(badRequest.Value!, "mensaje"));
+    }
+
+    [Fact]
+    public async Task SugerirTexto_ReturnsBadRequest_WhenDetailsAreMissing()
+    {
+        var controller = new ChatController(CreateGroqService(), CreateSnowflakeService());
+
+        var result = await controller.SugerirTexto(new SugerirTextoDto { IdGrupoExterno = "086" });
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.False(GetProperty<bool>(badRequest.Value!, "ok"));
+        Assert.Equal("Ingrese referencia, fabricante o texto de compra para sugerir el texto.", GetProperty<string>(badRequest.Value!, "mensaje"));
+    }
+
     private static IAuthService CreateAuthService() => new AuthService(CreateConfiguration());
 
     private static ISnowflakeService CreateSnowflakeService() => new SnowflakeService(CreateConfiguration());

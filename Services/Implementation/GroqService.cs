@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using AgentDataApi.DTOs;
 using AgentDataApi.Services.Interfaces;
 
@@ -310,6 +311,83 @@ Si te preguntan algo fuera de ese contexto, indica amablemente que solo puedes a
             }
         }
 
+        public async Task<string> SugerirTextoDescriptivoAsync(SugerirTextoDto datos)
+        {
+            var system = @"
+Eres un especialista SAP de Data Maestra para textos descriptivos de materiales.
+Tu tarea es proponer UN SOLO texto descriptivo compacto, en MAYÚSCULAS, máximo 40 caracteres.
+No expliques. No uses markdown. No uses comillas. Responde solo el texto.
+
+Estilo esperado:
+TUBO PTS AC 50X80X2.5MM
+BANDA PLANA POLIU 5100X950X2
+BAND PLAST MOD BOLER 6300MM 540MM 5MM
+BAND POLIURETANO BOLERO 7700MM 390MM
+BANDA MOD ENTRE TAMBORES MOGA 6000MM
+BANDA MOD. SALIDA TUNEL MOGA 12000MM
+BANDA PU CANGI/BOLEROS 18000X500X3
+RODAMIENTO F685 2RS
+SERVOMOTOR R911309762 REXROTH
+BOMBA SUMERGIBLE 7.5HP 85SSI07F66-0763
+TEE NEUMATICA T8MM PE FESTO
+CUCHILLA ABRE FACIL 35.9X16.6MM
+CILINDRO ADN-S-32-15-A-P FESTO
+
+Reglas:
+- Usa el Grupo Art. Externo como señal principal de taxonomía.
+- Si hay referencia y fabricante, usa estructura TIPO + REFERENCIA + MARCA.
+- Si es genérico, usa TIPO + MATERIAL/CARACTERÍSTICA + MEDIDA.
+- Abrevia sin perder claridad: POLIURETANO puede ser POLIU si ayuda al límite.
+- Conserva medidas, referencias, puntos, guiones, slash, # y Ø si aplican.
+- No agregues palabras como GENERICO, REPUESTO, VARIOS, PIEZA, OTRO.";
+
+            var user = $@"
+Datos para sugerir texto descriptivo SAP:
+- Grupo Artículo: {datos.IdGrupoArticulo} {datos.GrupoArticulo}
+- Grupo Art. Externo: {datos.IdGrupoExterno} {datos.GrupoExterno}
+- N° Parte / Referencia: {datos.NumeroParte}
+- Fabricante / Marca: {datos.Fabricante}
+- Texto de Compra: {datos.TextoCompra}
+
+Devuelve solo un texto de máximo 40 caracteres.";
+
+            var payload = new
+            {
+                model = _config["Groq:Model"] ?? "llama-3.3-70b-versatile",
+                messages = new[]
+                {
+                    new { role = "system", content = system },
+                    new { role = "user", content = user }
+                },
+                temperature = 0.1,
+                max_tokens = 80
+            };
+
+            var json = JsonSerializer.Serialize(payload);
+            var request = new HttpRequestMessage(HttpMethod.Post, GROQ_URL);
+            request.Headers.Add("Authorization", $"Bearer {_config["Groq:ApiKey"]}");
+            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _http.SendAsync(request);
+            var body = await response.Content.ReadAsStringAsync();
+
+            try
+            {
+                var groqRes = JsonSerializer.Deserialize<JsonElement>(body);
+                var content = groqRes
+                    .GetProperty("choices")[0]
+                    .GetProperty("message")
+                    .GetProperty("content")
+                    .GetString() ?? string.Empty;
+
+                return NormalizeSuggestedText(content);
+            }
+            catch
+            {
+                return BuildFallbackSuggestion(datos);
+            }
+        }
+
         private static VerificarResultadoDto FallbackError() => new()
         {
             Aprobado = false,
@@ -318,5 +396,42 @@ Si te preguntan algo fuera de ese contexto, indica amablemente que solo puedes a
             Sugerencia = null,
             Duplicados = new()
         };
+
+        private static string NormalizeSuggestedText(string value)
+        {
+            var firstLine = value
+                .Replace("```", "")
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .FirstOrDefault() ?? string.Empty;
+            var clean = firstLine.Trim().Trim('"', '\'', '.', '-', '*');
+
+            clean = Regex.Replace(clean.ToUpperInvariant(), @"[^A-Z0-9ÑÁÉÍÓÚÜØ\s\-\./#]", " ");
+            clean = Regex.Replace(clean, @"\s+", " ").Trim();
+
+            if (clean.Length <= 40) return clean;
+
+            var truncated = clean[..40].TrimEnd();
+            var lastSpace = truncated.LastIndexOf(' ');
+            return lastSpace >= 28 ? truncated[..lastSpace].TrimEnd() : truncated;
+        }
+
+        private static string BuildFallbackSuggestion(SugerirTextoDto datos)
+        {
+            var parts = new[]
+            {
+                FirstMeaningfulWord(datos.GrupoExterno),
+                datos.NumeroParte,
+                datos.Fabricante
+            };
+
+            return NormalizeSuggestedText(string.Join(' ', parts.Where(p => !string.IsNullOrWhiteSpace(p))));
+        }
+
+        private static string FirstMeaningfulWord(string value)
+        {
+            return value
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .FirstOrDefault(word => word.Length > 2) ?? string.Empty;
+        }
     }
 }

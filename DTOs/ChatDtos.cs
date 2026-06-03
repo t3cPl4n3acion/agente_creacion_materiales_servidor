@@ -24,6 +24,17 @@ namespace AgentDataApi.DTOs
         public List<HistorialDto> Historial { get; set; } = new();
     }
 
+    public class SugerirTextoDto
+    {
+        public string GrupoArticulo { get; set; } = string.Empty;
+        public string IdGrupoArticulo { get; set; } = string.Empty;
+        public string GrupoExterno { get; set; } = string.Empty;
+        public string IdGrupoExterno { get; set; } = string.Empty;
+        public string NumeroParte { get; set; } = string.Empty;
+        public string Fabricante { get; set; } = string.Empty;
+        public string TextoCompra { get; set; } = string.Empty;
+    }
+
     public class HistorialDto
     {
         public string Role { get; set; } = string.Empty;
@@ -35,6 +46,13 @@ namespace AgentDataApi.DTOs
         public bool Ok { get; set; } = true;
         public string Respuesta { get; set; } = string.Empty;
         public bool Bloqueado { get; set; } = false;
+        public string? Mensaje { get; set; }
+    }
+
+    public class SugerirTextoResponseDto
+    {
+        public bool Ok { get; set; } = true;
+        public string Texto { get; set; } = string.Empty;
         public string? Mensaje { get; set; }
     }
 

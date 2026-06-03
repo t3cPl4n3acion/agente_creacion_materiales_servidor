@@ -80,5 +80,33 @@ namespace AgentDataApi.Controllers
                 });
             }
         }
+
+        // ── POST /api/chat/sugerir-texto ──────────────────
+        [HttpPost("sugerir-texto")]
+        public async Task<IActionResult> SugerirTexto([FromBody] SugerirTextoDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.IdGrupoExterno) && string.IsNullOrWhiteSpace(dto.GrupoExterno))
+                return BadRequest(new { ok = false, mensaje = "El Grupo Art. Ext. es requerido." });
+
+            if (string.IsNullOrWhiteSpace(dto.NumeroParte) &&
+                string.IsNullOrWhiteSpace(dto.Fabricante) &&
+                string.IsNullOrWhiteSpace(dto.TextoCompra))
+                return BadRequest(new { ok = false, mensaje = "Ingrese referencia, fabricante o texto de compra para sugerir el texto." });
+
+            try
+            {
+                var texto = await _groq.SugerirTextoDescriptivoAsync(dto);
+
+                return Ok(new SugerirTextoResponseDto
+                {
+                    Ok = true,
+                    Texto = texto
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { ok = false, mensaje = ex.Message });
+            }
+        }
     }
 }

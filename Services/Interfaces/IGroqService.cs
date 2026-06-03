@@ -9,4 +9,6 @@ public interface IGroqService
         List<Dictionary<string, object>> duplicadosSnowflake);
 
     Task<string> ChatLibreAsync(string pregunta, List<HistorialDto> historial);
+
+    Task<string> SugerirTextoDescriptivoAsync(SugerirTextoDto datos);
 }

@@ -147,6 +147,26 @@ public class ControllerSuccessTests
         Assert.Equal("Respuesta IA", response.Respuesta);
     }
 
+    [Fact]
+    public async Task SugerirTexto_ReturnsOk_WithSuggestedText()
+    {
+        var controller = new ChatController(
+            new FakeGroqService { SuggestedText = "BANDA PLANA POLIU 5100X950X2" },
+            new FakeSnowflakeService());
+
+        var result = await controller.SugerirTexto(new SugerirTextoDto
+        {
+            IdGrupoExterno = "086",
+            GrupoExterno = "BANDAS TRANSPORTADOR",
+            TextoCompra = "Banda plana poliuretano 5100x950x2"
+        });
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<SugerirTextoResponseDto>(ok.Value);
+        Assert.True(response.Ok);
+        Assert.Equal("BANDA PLANA POLIU 5100X950X2", response.Texto);
+    }
+
     private static T GetProperty<T>(object value, string propertyName)
     {
         var property = value.GetType().GetProperty(propertyName);
@@ -211,11 +231,14 @@ public class ControllerSuccessTests
     {
         public VerificarResultadoDto VerificarResult { get; set; } = new();
         public string ChatAnswer { get; set; } = string.Empty;
+        public string SuggestedText { get; set; } = string.Empty;
 
         public Task<VerificarResultadoDto> VerificarMaterialAsync(
             VerificarDto datos,
             List<Dictionary<string, object>> duplicadosSnowflake) => Task.FromResult(VerificarResult);
 
         public Task<string> ChatLibreAsync(string pregunta, List<HistorialDto> historial) => Task.FromResult(ChatAnswer);
+
+        public Task<string> SugerirTextoDescriptivoAsync(SugerirTextoDto datos) => Task.FromResult(SuggestedText);
     }
 }
